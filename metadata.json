@@ -1,0 +1,8 @@
+{
+  "name": "Remix HiperReforço — CRM \u0026 Caderno de Validação",
+  "description": "Sistema de validacao CRM",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

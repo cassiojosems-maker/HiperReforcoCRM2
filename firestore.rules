@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Funções auxiliares
+    function isSignedIn() { return request.auth != null; }
+    function isAllowed() {
+      return isSignedIn() && (
+        request.auth.token.email == 'cassiojosems@gmail.com' ||
+        (exists(/databases/$(database)/documents/allowlist/$(request.auth.token.email)) &&
+         get(/databases/$(database)/documents/allowlist/$(request.auth.token.email)).data.ativo == true)
+      );
+    }
+
+    // 0. Bloqueio padrão global (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. allowlist: leitura para usuários autenticados
+    match /allowlist/{email} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // 2. validacao_entrevistas: apenas para e-mail na allowlist ou owner
+    match /validacao_entrevistas/{id} {
+      allow read, write: if isAllowed();
+    }
+
+    // 3. validacao_respostas: criação pública via formulário, leitura e manutenção apenas por autorizados
+    match /validacao_respostas/{id} {
+      allow create: if true;
+      allow read, update, delete: if isAllowed();
+    }
+    
+    // 4. validacao_tokens: leitura pública para verificação de convite; atualização pública permitida estritamente de não-usado para usado; criação pelo CRM
+    match /validacao_tokens/{token} {
+      allow read: if true;
+      allow create, delete: if isAllowed();
+      allow update: if isAllowed() || (resource.data.usado == false && request.resource.data.usado == true);
+    }
+
+    // 5. validacao_notificacoes: auditoria de disparos de e-mail (criação permitida no envio do form, leitura pelo CRM)
+    match /validacao_notificacoes/{id} {
+      allow create: if true;
+      allow read, update, delete: if isAllowed();
+    }
+
+    // 6. validacao_config: configurações de notificação (leitura pública para envio, alteração restrita ao CRM)
+    match /validacao_config/{docId} {
+      allow read: if true;
+      allow write: if isAllowed();
+    }
+  }
+}
